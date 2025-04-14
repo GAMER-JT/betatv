@@ -1761,7 +1761,7 @@ html >
                     console.error('HLS Error:', data);
                     
                     if (data.details === 'bufferStalledError') {
-                        isLoading = true;
+                        isLoading = false;
                         updatePlayerUI();
                         
                         // Try to recover by seeking slightly forward
