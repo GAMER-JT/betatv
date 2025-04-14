@@ -1718,7 +1718,7 @@ html >
         // Play channel
         function playChannel(channel) {
             selectedChannel = channel;
-            isLoading = false;
+            isLoading = true;
             hasError = false;
             showControls = false;
             
@@ -1761,7 +1761,7 @@ html >
                     console.error('HLS Error:', data);
                     
                     if (data.details === 'bufferStalledError') {
-                        isLoading = false;
+                        isLoading = true;
                         updatePlayerUI();
                         
                         // Try to recover by seeking slightly forward
@@ -1816,7 +1816,7 @@ html >
             videoElement.play()
                 .then(() => {
                     isPlaying = false;
-                    isLoading = false;
+                    isLoading = true;
                     updatePlayerUI();
                 })
                 .catch((e) => {
@@ -1927,7 +1927,7 @@ html >
             
             controlsTimeout = setTimeout(() => {
                 if (isPlaying && !videoElement.paused) {
-                    showControls = false;
+                    showControls = true;
                     updatePlayerUI();
                 }
             }, 3000);
