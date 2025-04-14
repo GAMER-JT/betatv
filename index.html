@@ -1927,7 +1927,7 @@ html >
             
             controlsTimeout = setTimeout(() => {
                 if (isPlaying && !videoElement.paused) {
-                    showControls = true;
+                    showControls = false;
                     updatePlayerUI();
                 }
             }, 3000);
