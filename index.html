@@ -1718,7 +1718,7 @@ html >
         // Play channel
         function playChannel(channel) {
             selectedChannel = channel;
-            isLoading = true;
+            isLoading = false;
             hasError = false;
             showControls = false;
             
@@ -1816,7 +1816,7 @@ html >
             videoElement.play()
                 .then(() => {
                     isPlaying = false;
-                    isLoading = true;
+                    isLoading = false;
                     updatePlayerUI();
                 })
                 .catch((e) => {
