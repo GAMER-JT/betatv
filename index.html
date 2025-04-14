@@ -1,0 +1,2098 @@
+<!DOCTYPE
+html >
+  <html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-icons@0.309.0/dist/umd/lucide.min.css">
+    <style>
+        :root {
+            --red-color: #e11d48;
+        }
+
+        body {
+            background: linear-gradient(to bottom right, #0f0f0f, #1a1a1a);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            padding-bottom: 5rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Video Player */
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background-color: #000;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+            margin-bottom: 1.75rem;
+            margin-top: 1.25rem;
+            transition: all 0.3s;
+        }
+
+        .video-player video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: opacity 0.3s;
+        }
+
+        .top-controls {
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+            padding-top: 0.75rem;
+            padding-bottom: 2rem;
+        }
+
+        .top-controls-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.25rem;
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .channel-info-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            font-size: 0.75rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            background-color: rgba(225, 29, 72, 0.3);
+            color: var(--red-color);
+        }
+
+        .live-dot {
+            width: 0.375rem;
+            height: 0.375rem;
+            border-radius: 50%;
+            background-color: var(--red-color);
+            margin-right: 0.25rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .channel-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .genre-badge {
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            background-color: rgba(225, 29, 72, 0.2);
+            color: var(--red-color);
+        }
+
+        .channel-location {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .control-btn:hover {
+            background-color: rgba(0, 0, 0, 0.6);
+            transform: scale(1.05);
+        }
+
+        .bottom-controls {
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+            padding-bottom: 0.75rem;
+            padding-top: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .play-indicator {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 9999px;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--red-color);
+            box-shadow: 0 0 15px rgba(225, 29, 72, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+        }
+
+        .spinner {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            border: 4px solid rgba(225, 29, 72, 0.5);
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Error Message */
+        .error-message {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            text-align: center;
+            padding: 1.25rem;
+        }
+
+        .error-icon {
+            font-size: 3rem;
+            color: #ef4444;
+            margin-bottom: 1.25rem;
+        }
+
+        .error-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .error-description {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 1rem;
+        }
+
+        .retry-button {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            background-color: var(--red-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .retry-button:hover {
+            opacity: 0.9;
+        }
+
+        /* No Channel Selected */
+        .no-channel {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            text-align: center;
+            padding: 1.25rem;
+        }
+
+        .no-channel-icon {
+            width: 5rem;
+            height: 5rem;
+            border-radius: 9999px;
+            background-color: rgba(225, 29, 72, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .no-channel-icon svg {
+            width: 2.5rem;
+            height: 2.5rem;
+            color: var(--red-color);
+        }
+
+        .no-channel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .no-channel-subtitle {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        /* Category Filter */
+        .category-filter {
+            position: relative;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 0;
+            overflow: hidden;
+        }
+
+        .category-filter-inner {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+            scrollbar-width: none;
+        }
+
+        .category-filter-inner::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-btn {
+            padding: 0.75rem 1.25rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            background-color: rgba(30, 30, 30, 0.6);
+            color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+        }
+
+        .category-btn.active {
+            background-color: var(--red-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.4);
+        }
+
+        .category-btn:hover:not(.active) {
+            transform: translateY(-2px);
+        }
+
+        /* Channel Section */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 1.25rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-title::after {
+            content: "";
+            position: absolute;
+            bottom: -0.375rem;
+            left: 0;
+            width: 2.5rem;
+            height: 0.25rem;
+            border-radius: 9999px;
+            background-color: var(--red-color);
+        }
+
+        .channel-row {
+            position: relative;
+            margin-bottom: 1.75rem;
+            group: "channel-row";
+        }
+
+        .scroll-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .scroll-btn.left {
+            left: -1.25rem;
+        }
+
+        .scroll-btn.right {
+            right: -1.25rem;
+        }
+
+        .channel-row:hover .scroll-btn {
+            opacity: 1;
+        }
+
+        .scroll-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .channel-list {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 0.5rem 0.125rem;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+        }
+
+        .channel-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Channel Card */
+        .channel-card {
+            flex-shrink: 0;
+            width: 140px;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            border-radius: 1rem;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s;
+        }
+
+        .channel-card:hover {
+            transform: scale(1.05) translateY(-4px);
+        }
+
+        .channel-card.selected {
+            box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+            border: 2px solid var(--red-color);
+        }
+
+        .channel-thumbnail {
+            position: relative;
+            aspect-ratio: 16/9;
+            overflow: hidden;
+        }
+
+        .channel-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .channel-card:hover .channel-thumbnail img {
+            transform: scale(1.1);
+        }
+
+        .channel-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, black 0%, transparent 100%);
+            opacity: 0.8;
+        }
+
+        .channel-card.selected .channel-overlay {
+            background: linear-gradient(to top, black 0%, rgba(225, 29, 72, 0.3) 100%);
+        }
+
+        .channel-info-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            padding: 0.75rem;
+        }
+
+        .channel-name {
+            font-weight: bold;
+            color: #fff;
+            font-size: 0.875rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .channel-meta-overlay {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .channel-live-badge {
+            display: flex;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.125rem 0.375rem;
+            border-radius: 9999px;
+        }
+
+        .channel-live-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background-color: var(--red-color);
+            margin-right: 0.25rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .favorite-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #9ca3af;
+        }
+
+        .favorite-btn.active {
+            background-color: var(--red-color);
+            color: white;
+        }
+
+        .channel-footer {
+            padding: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .channel-genre {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            background-color: rgba(225, 29, 72, 0.2);
+            color: var(--red-color);
+        }
+
+        /* Empty States */
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            border-radius: 0.75rem;
+        }
+
+        .empty-icon {
+            width: 5rem;
+            height: 5rem;
+            border-radius: 9999px;
+            background-color: rgba(225, 29, 72, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+
+        .empty-icon svg {
+            width: 2.5rem;
+            height: 2.5rem;
+            color: var(--red-color);
+        }
+
+        .empty-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .empty-subtitle {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        /* Search Dialog */
+        .search-dialog {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .search-content {
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 1px solid #1f2937;
+            border-radius: 1.5rem;
+            width: 95%;
+            max-width: 1280px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.75rem;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: scaleIn 0.3s ease-out forwards;
+        }
+
+        .search-header {
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .search-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--red-color);
+            position: relative;
+            display: inline-block;
+        }
+
+        .search-title::after {
+            content: "";
+            position: absolute;
+            bottom: -0.375rem;
+            left: 0;
+            width: 2.5rem;
+            height: 0.25rem;
+            border-radius: 9999px;
+            background-color: var(--red-color);
+        }
+
+        .close-search {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #1f2937;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .close-search:hover {
+            transform: rotate(90deg);
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .search-input-container {
+            margin-bottom: 1.75rem;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #1f2937;
+            color: #fff;
+            border-radius: 9999px;
+            outline: none;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--red-color);
+            box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .search-results {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 0 0.5rem;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(31, 41, 55, 0.5);
+            z-index: 50;
+            display: flex;
+            justify-content: space-around;
+            height: 5rem;
+            box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            transition: all 0.3s;
+            color: #6b7280;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .nav-btn.active {
+            color: var(--red-color);
+        }
+
+        .nav-icon-container {
+            padding: 0.5rem;
+            border-radius: 9999px;
+            margin-bottom: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active .nav-icon-container {
+            background-color: rgba(225, 29, 72, 0.1);
+            transform: scale(1.1);
+        }
+
+        .nav-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .nav-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Utilities */
+        .hidden {
+            display: none !important;
+        }
+
+        .fill-current {
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Video Player -->
+        <div class="video-player" id="player">
+            <video id="video"></video>
+
+            <!-- Video Controls -->
+            <div class="controls" id="controls">
+                <!-- Top Controls -->
+                <div class="top-controls">
+                    <div class="top-controls-inner">
+                        <div class="channel-info">
+                            <button class="control-btn" id="back-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>
+                            </button>
+                            <div class="channel-info-text">
+                                <h3 class="channel-title" id="channel-title">
+                                    Selecciona un canal
+                                    <div class="live-badge hidden" id="live-badge">
+                                        <div class="live-dot"></div>
+                                        EN VIVO
+                                    </div>
+                                </h3>
+                                <div class="channel-meta">
+                                    <p class="genre-badge" id="genre-badge"></p>
+                                    <p class="channel-location" id="channel-location"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-buttons">
+                            <button class="control-btn" id="mute-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                            </button>
+                            <button class="control-btn" id="refresh-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>
+                            </button>
+                            <button class="control-btn" id="fullscreen-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Controls -->
+                <div class="bottom-controls">
+                    <div class="play-indicator hidden" id="play-indicator">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading-spinner hidden" id="loading-spinner">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Error Message -->
+            <div class="error-message hidden" id="error-message">
+                <div class="error-icon">⚠️</div>
+                <div class="error-title">Error al cargar el video</div>
+                <div class="error-description">Intenta con otro canal o recarga la página</div>
+                <button class="retry-button" id="retry-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>
+                    <span>Intentar Recargar</span>
+                </button>
+            </div>
+
+            <!-- No Channel Selected -->
+            <div class="no-channel" id="no-channel">
+                <div class="no-channel-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                </div>
+                <p class="no-channel-title">Selecciona un canal para comenzar</p>
+                <p class="no-channel-subtitle">Explora los canales disponibles abajo</p>
+            </div>
+        </div>
+
+        <!-- TV Tab Content -->
+        <div id="tv-tab" class="tab-content">
+            <!-- Category Filter -->
+            <div class="category-filter">
+                <div class="category-filter-inner" id="category-filter">
+                    <!-- Categories will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Channel Section -->
+            <div class="channel-section">
+                <h2 class="section-title">Canales</h2>
+                <div id="channels-container">
+                    <!-- Channel rows will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Favorites Tab Content -->
+        <div id="favorites-tab" class="tab-content hidden">
+            <h2 class="section-title">Mis Favoritos</h2>
+            <div id="favorites-container">
+                <!-- Favorite channels will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Dialog -->
+    <div class="search-dialog hidden" id="search-dialog">
+        <div class="search-content">
+            <div class="search-header">
+                <h2 class="search-title">Buscar Canales</h2>
+                <button class="close-search" id="close-search">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="search-input-container">
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar por nombre o categoría...">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+
+            <div class="search-results" id="search-results">
+                <!-- Search results will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-btn active" id="tv-btn">
+            <div class="nav-icon-container">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            </div>
+            <span class="nav-label">TV en vivo</span>
+        </button>
+
+        <button class="nav-btn" id="search-btn">
+            <div class="nav-icon-container">
+                <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            <span class="nav-label">Buscar</span>
+        </button>
+
+        <button class="nav-btn" id="favorites-btn">
+            <div class="nav-icon-container">
+                <svg class="nav-icon" id="favorites-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            </div>
+            <span class="nav-label">Favoritos</span>
+        </button>
+    </div>
+
+    <script>
+        // Channel data
+        const channels = [
+ {
+    id: 1,
+    name: "Sony Novelas",
+    logo: "https://www.cxtv.com.br/img/Tvs/Logo/webp-m/a3bd552eca6645942a60a053fe61fafb.webp",
+    country: "Series",
+    genre: "Series",
+    currentShow: "Estados Unidos",
+    language: "Español",
+    streamUrl: "https://a89829b8dca2471ab52ea9a57bc28a35.mediatailor.us-east-1.amazonaws.com/v1/master/0fb304b2320b25f067414d481a779b77db81760d/CanelaTV_SonyCanalNovelas/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 2,
+    name: "Telemundo Miami",
+    logo: "https://www.cxtv.com.br/img/Tvs/Logo/webp-m/70ef4b19ce0f5b973ff48dffd540d3d8.webp",
+    country: "Noticias",
+    genre: "Noticias",
+    currentShow: "Estados Unidos",
+    language: "Español",
+    streamUrl: "https://d2kowtvrzzi7ps.cloudfront.net/manifest/3fec3e5cac39a52b2132f9c66c83dae043dc17d4/prod_default_nbc/5a817dba-a6f1-4dac-9871-91e9e76e1762/2.m3u8",
+    isLive: true
+  },
+  {
+    id: 3,
+    name: "Canela Deportes",
+    logo: "https://www.cxtv.com.br/img/Tvs/Logo/webp-m/3a49e44efce01bea59de8af9e253695f.webp",
+    country: "Deportes",
+    genre: "Deportes",
+    currentShow: "Estados Unidos",
+    language: "Español",
+    streamUrl: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 4,
+    name: "3ABN KIDS",
+    logo: "https://www.cxtv.com.br/img/Tvs/Logo/webp-m/42de800d69d78117b03852bac7ae3818.webp",
+    country: "Infantil",
+    genre: "Infantil",
+    currentShow: "Estados Unidos",
+    language: "English",
+    streamUrl: "https://3abn.bozztv.com/3abn2/Kids_live/smil:Kids_live.smil/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 5,
+    name: "FOX Sports",
+    logo: "https://www.cxtv.com.br/img/Tvs/Logo/webp-m/5c2f33d5ee4ec2d82edb58610f2b0ff7.webp",
+    country: "Deportes",
+    genre: "Deportes",
+    currentShow: "Estados Unidos",
+    language: "Español",
+    streamUrl: "https://live-news-manifest.tubi.video/live-news-manifest/csm/extlive/tubiprd01,Fox-Sports-Espanol2.m3u8",
+    isLive: true
+  },
+  {
+    id: 6,
+    name: "DW Español",
+    logo: "https://static.dw.com/image/69105274_6.jpg",
+    country: "Noticias",
+    genre: "Noticias",
+    currentShow: "Alemania",
+    language: "Español",
+    streamUrl: "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 7,
+    name: "RT en Español",
+    logo: "https://st1-fs.cdn01.net/channels/0000026/0026353/thumb/0026353xl.jpg?v2",
+    country: "Noticias",
+    genre: "Noticias",
+    currentShow: "Rusia",
+    language: "Español",
+    streamUrl: "https://rt-esp.rttv.com/live/rtesp/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 8,
+    name: "ZAZ TV",
+    logo: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjAKZlLMfvYZrR0A8eiR1UHmgo6EFjBYJuvTi-4p0gPUeRnBRxQqGpun0tsolopOEzefwuNHPWGZ-inAdz6V9eke12-7NB93hkRkrvX7FDxv6zEVygWZ1gZ4X0Ib2TErnG00eXPS04e4hBPBDKuLIDY0TnzDnMs6XMcFEvpKDQq_68Fli1_X2kf72dj/w640-h360-rw/thumbh_20220411_193252.png",
+    country: "Infantil",
+    genre: "Infantil",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://stream.ads.ottera.tv/playlist.m3u8?network_id=1972",
+    isLive: true
+  },
+  {
+    id: 9,
+    name: "AZTV Anime Zone TV",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSxaEfaLlTAOnutjTUy8_3j6X2DYViO-KpnBQ&s",
+    country: "Infantil",
+    genre: "Infantil",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://stmv1.srvif.com/loadingtv/loadingtv/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 10,
+    name: "Toonz Kids",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSE5rxS63ltO6P3_jGi4sJG3aS8KRf1rUVejg&s",
+    country: "Infantil",
+    genre: "Infantil",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/toonzkids-spanish/master.m3u8",
+    isLive: true
+  },
+  {
+    id: 11,
+    name: "Pitufo TV",
+    logo: "https://images.plex.tv/photo?size=large-1920&scale=1&url=https%3A%2F%2Fprovider-static.plex.tv%2Fepg%2Fcms%2Fproduction%2F425ebc35-6dda-4d18-a271-38c957058769%2Fpitufotv_1920x1080_-_Jordan_Warkol.jpg",
+    country: "Infantil",
+    genre: "Infantil",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://stream.ads.ottera.tv/playlist.m3u8?network_id=4211",
+    isLive: true
+  },
+  {
+    id: 12,
+    name: "News 24",
+    logo: "https://elements-resized.envatousercontent.com/elements-video-cover-images/1c0ebcb3-d620-477f-b8af-8058ddfec8cd/video_preview/video_preview_0001.jpg?w=500&cf_fit=cover&q=85&format=auto&s=58716a6d2c56cf314bae13127cea899470df08c38d5b12b61bfd49ac61819cdd",
+    country: "Noticias",
+    genre: "Noticias",
+    currentShow: "Italia",
+    language: "Español",
+    streamUrl: "https://tv.balkanweb.com/news24/livestream/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 13,
+    name: "Deluxe Music Tv",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSM9bXagR1EfssmHvwooOQo_ay-D7fZqxbo5Q&s",
+    country: "Musica",
+    genre: "Musica",
+    currentShow: "Alemania",
+    language: "Español",
+    streamUrl: "https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/toonzkids-spanish/master.m3u8",
+    isLive: true
+  },
+  {
+    id: 14,
+    name: "Azteca Deportes",
+    logo: "https://tvazteca.brightspotcdn.com/6d/1e/76b6488b472db5c2a135f47ee773/azteca-deportes-1920x1080.jpg",
+    country: "Deportes",
+    genre: "Deportes",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://azt-mun.otteravision.com/azt/mun/mun.m3u8",
+    isLive: true
+  },
+  {
+    id: 15,
+    name: "Las Estrellas",
+    logo: "https://www.lasestrellas.tv/api/image/x/us/en-vivo",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://channel01-onlymex.akamaized.net/hls/live/2022749/event01/index_1.m3u8",
+    isLive: true
+  },
+  {
+    id: 16,
+    name: "Canal Once",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_KPaYCmXxePMm40h2tiq32D9S6VKZ2U4wSw&s",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://vivo.canaloncelive.tv/oncedos/ngrp:pruebachunks_all/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 17,
+    name: "Corazón",
+    logo: "https://provider-static.plex.tv/epg/cms/production/9eca3c59-10f2-4311-b979-866063b819f2/Corizon_Hor_image.jpg",
+    country: "Series",
+    genre: "Series",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://amg00658-amg00658c57-canelatv-international-5437.playouts.now.amagi.tv/playlist/amg00658-canelamediafast-corazontvaztecaappta-canelatvinternational/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 18,
+    name: "Cinema",
+    logo: "https://tvazteca.brightspotcdn.com/dims4/default/e5b3709/2147483647/strip/true/crop/1920x1080+0+0/resize/928x522!/format/webp/quality/90/?url=http%3A%2F%2Ftv-azteca-brightspot.s3.amazonaws.com%2F24%2Ff8%2F6b61a723433b85fa4ef6af15553e%2Fcinema-1920x1080-1.jpg",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://stream.ads.ottera.tv/playlist.m3u8?network_id=5400",
+    isLive: true
+  },
+  {
+    id: 19,
+    name: "RTQ",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJ_4AaY4BqqAnNGTBqLjQyREY7RjWnOupAtA&s",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Mexico",
+    language: "Español",
+    streamUrl: "https://59d39900ebfb8.streamlock.net/rytqrolive/rytqrolive/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 20,
+    name: "Pelimex",
+    logo: "https://www.freecast.com/_next/image?url=https%3A%2F%2Fd3e3bui7xn67l.cloudfront.net%2Fcms_media%2Fmedia%2Flive%2Fchannel%2F864eb71d-3224-4116-838f-a7923c3d4134-1716930828.157177.256x256.jpg&w=256&q=75",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "Cine",
+    language: "Español",
+    streamUrl: "https://amg00658-amg00658c95-canelatv-international-6696.playouts.now.amagi.tv/playlist/amg00658-canelamediafast-pelimexta-canelatvinternational/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 21,
+    name: "Televen",
+    logo: "https://i.ytimg.com/vi/1o4f2pI-vps/maxresdefault.jpg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Venezuela",
+    language: "Español",
+    streamUrl: "https://d39cdj6x0ssnqk.cloudfront.net/out/v1/ae3f5ad3ac9d4bcfbedc1894a62782b4/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 22,
+    name: "Canal 21",
+    logo: "https://megavision.univtec.com/_next/image?url=https%3A%2F%2Fkki5auiqw9.execute-api.us-east-1.amazonaws.com%2Fstg%2Fresize%3Furl%3Dhttps%3A%2F%2Ffrankly-vod.akamaized.net%2Fmegavision%2Fuploaded%2F754bd760-78d6-48db-90ad-88b97e502ed8.jpeg&w=3840&q=90",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Salvador",
+    language: "Español",
+    streamUrl: "https://mgv-channel21.akamaized.net/hls/live/2093191/MGV_CHANNEL21/master.m3u8",
+    isLive: true
+  },
+  {
+    id: 23,
+    name: "Telesur",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3JgmI2JOksiDcQSRqk155dLecH8bwG0_Wmwtk3oEM-4fRNbcWluA-BQ2GQqXcpEOR5Xk&usqp=CAU",
+    country: "Noticias",
+    genre: "Noticias",
+    currentShow: "Venezuela",
+    language: "Español",
+    streamUrl: "https://cdnesmain.telesur.ultrabase.net/mbliveMain/hd/.m3u8",
+    isLive: true
+  },
+  {
+    id: 24,
+    name: "Latina",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKctFHq8Ii2aEPHziheR5wXUM44uat34kGwA&s",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Peru",
+    language: "Español",
+    streamUrl: "https://redirector.rudo.video/hls-video/567ffde3fa319fadf3419efda25619456231dfea/latina/latina/.m3u8",
+    isLive: true
+  },
+  {
+    id: 25,
+    name: "Ecuavisa",
+    logo: "https://cdn.rudo.video/assets/ecuavisa/live/live_331386e7141731773c4c84caa3a273c11696295901.jpg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Ecuador",
+    language: "Español",
+    streamUrl: "https://redirector.rudo.video/hls-video/c54ac2799874375c81c1672abb700870537c5223/ecuavisa/ecuavisa.smil/playlist_dvr.m3u8?did=b2153323358367ca6f02b283e",
+    isLive: true
+  },
+  {
+    id: 26,
+    name: "Teleamazona",
+    logo: "https://i.ytimg.com/vi/oZFsXMgkpQ0/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGH8gJigTMA8=&rs=AOn4CLC5zSqmBx34uw0TgUSMGTYkXbMFYg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Ecuador",
+    language: "Español",
+    streamUrl: "https://teleamazonas-live.cdn.vustreams.com/live/fd4ab346-b4e3-4628-abf0-b5a1bc192428/live.isml/fd4ab346-b4e3-4628-abf0-b5a1bc192428.m3u8",
+    isLive: true
+  },
+  {
+    id: 27,
+    name: "Rts",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6Sq9WvVgfzOF7v4iB3NHxT5cWRSOUzDoQeA&s",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Ecuador",
+    language: "Español",
+    streamUrl: "https://alba-ec-rts-rts.stream.mediatiquestream.com/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 28,
+    name: "Cali TV",
+    logo: "https://image.roku.com/developer_channels/prod/5c8001a2b29bd6e02113870b26f1abaf38d428f3bf2ef15d93539b5b7730c1dd.png",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Colombia",
+    language: "Español",
+    streamUrl: "https://5ab772334c39c.streamlock.net/live-calitv/_definst_/calitv1/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 29,
+    name: "Venevision",
+    logo: "https://cisneros-vod.akamaized.net/venevision/uploaded/a833ecf3-a21c-49e3-a2eb-8e67dfc916e5.jpeg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Venezuela",
+    language: "Español",
+    streamUrl: "https://pubads.g.doubleclick.net/ssai/event/4EZVJznARm6vHvBUVjnYsw/master.m3u8",
+    isLive: true
+  },
+  {
+    id: 30,
+    name: "Telepacifico",
+    logo: "https://cloudfront-us-east-1.images.arcpublishing.com/elespectador/KLUEITR5YFF7HFWXJAVMLGKLX4.jpg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Colombia",
+    language: "Español",
+    streamUrl: "https://live-edge-eu-1.cdn.enetres.net/6E5C615AA5FF4123ACAF0DAB57B7B8DC021/live-telepacifico/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 31,
+    name: "La red",
+    logo: "https://puranoticia.pnt.cl/cms/site/artic/20220610/imag/foto_0000000420220610182433/La-Red.png",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Chile",
+    language: "Español",
+    streamUrl: "https://alba-cl-lared-lared.stream.mediatiquestream.com/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 32,
+    name: "Deportes13 TV",
+    logo: "https://s.t13.cl/sites/default/files/styles/manualcrop_850x475/public/t13/field-imagen/2023-05/whatsapp_image_2023-05-19_at_11.24.45.jpeg?itok=q-iMMPw5",
+    country: "Deportes",
+    genre: "Deportes",
+    currentShow: "Chile",
+    language: "Español",
+    streamUrl: "https://dai.google.com/linear/hls/event/uFiYkh4CQPCPgbs7WPKhXw/master.m3u8",
+    isLive: true
+  },
+  {
+    id: 33,
+    name: "Caracol",
+    logo: "https://caracoltv.brightspotcdn.com/dims4/default/9b9a483/2147483647/strip/false/crop/1200x630+0+0/resize/1200x630!/format/webp/quality/75/?url=http%3A%2F%2Fcaracol-brightspot.s3.us-west-2.amazonaws.com%2Fe7%2F47%2F8e11490445fa970f4e73f7757615%2Fcaracoltv.jpg",
+    country: "Variedades",
+    genre: "Variedades",
+    currentShow: "Ecuador",
+    language: "Español",
+    streamUrl: "https://mdstrm.com/live-stream-playlist/632391734be92a791e2750e6.m3u8",
+    isLive: true
+  },
+  {
+    id: 34,
+    name: "Retro Plus",
+    logo: "https://ritsatv.ru/files/poster/original/900805.jpg",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "Chile",
+    language: "Español",
+    streamUrl: "https://scl.edge.grupoz.cl/retroplus16@grupoz.cl_retrolive/live/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 35,
+    name: "Runtime Español",
+    logo: "https://images.pluto.tv/channels/62c5d80dc6de440007e033eb/featuredImage.jpg",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://stream.ads.ottera.tv/playlist.m3u8?network_id=2649",
+    isLive: true
+  },
+  {
+    id: 36,
+    name: "Teleclásica",
+    logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmmq0iuN9ViKavGwj6S1G7GyY2LsX_FYmGAg&s",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "Costa Rica",
+    language: "Español",
+    streamUrl: "https://ssh101-fl.bozztv.com/ssh101/teleclasik/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 37,
+    name: "Cine Friki",
+    logo: "https://umsousercontent.com/lib_CQIHzphjEKuSMtLz/xebo16x4egs4ovfg.jpg?w=344&h=200&fit=crop",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://d2jqgm8hyia1n3.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-o8hl8d0bx6aah/index.m3u8",
+    isLive: true
+  },
+  {
+    id: 38,
+    name: "Grjngo Español",
+    logo: "https://i.ytimg.com/vi/frvNuyIQHKU/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCVty9Zb5YypZmWor7l5AyczalkdA",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://amogonetworx-grjngo-2-eu.plex.wurl.tv/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 39,
+    name: "Cine Romántico",
+    logo: "https://mma.prnewswire.com/media/1321479/UP_Entertainment_Cine_Romantico_Logo.jpg?p=facebook",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "España",
+    language: "Español",
+    streamUrl: "https://amg00658-amg00658c66-canelatv-international-5554.playouts.now.amagi.tv/playlist/amg00658-canelamediafast-cineromanticoappta-canelatvinternational/playlist.m3u8",
+    isLive: true
+  },
+  {
+    id: 40,
+    name: "Todo Cine",
+    logo: "https://pbs.twimg.com/ext_tw_video_thumb/1897680489965850624/pu/img/v9DOHcDblENqyOrK?format=jpg&name=large",
+    country: "Cine",
+    genre: "Cine",
+    currentShow: "Colombia",
+    language: "Español",
+    streamUrl: "https://stream.ads.ottera.tv/playlist.m3u8?network_id=4565",
+    isLive: true
+  },
+        ];
+
+        // DOM Elements
+        const videoElement = document.getElementById('video');
+        const playerElement = document.getElementById('player');
+        const controlsElement = document.getElementById('controls');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const errorMessage = document.getElementById('error-message');
+        const noChannel = document.getElementById('no-channel');
+        const channelTitle = document.getElementById('channel-title');
+        const liveBadge = document.getElementById('live-badge');
+        const genreBadge = document.getElementById('genre-badge');
+        const channelLocation = document.getElementById('channel-location');
+        const playIndicator = document.getElementById('play-indicator');
+        const backBtn = document.getElementById('back-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const retryBtn = document.getElementById('retry-btn');
+        const categoryFilter = document.getElementById('category-filter');
+        const channelsContainer = document.getElementById('channels-container');
+        const favoritesContainer = document.getElementById('favorites-container');
+        const tvTab = document.getElementById('tv-tab');
+        const favoritesTab = document.getElementById('favorites-tab');
+        const tvBtn = document.getElementById('tv-btn');
+        const searchBtn = document.getElementById('search-btn');
+        const favoritesBtn = document.getElementById('favorites-btn');
+        const favoritesIcon = document.getElementById('favorites-icon');
+        const searchDialog = document.getElementById('search-dialog');
+        const closeSearch = document.getElementById('close-search');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+
+        // State
+        let selectedChannel = null;
+        let isPlaying = false;
+        let isLoading = false;
+        let hasError = false;
+        let activeTab = 'tv';
+        let favorites = [];
+        let activeGenre = 'Todos';
+        let isMuted = false;
+        let isFullscreen = false;
+        let showControls = false;
+        let controlsTimeout = null;
+        let hls = null;
+
+        // Initialize
+        function init() {
+            // Load favorites from localStorage
+            const savedFavorites = localStorage.getItem('tvStreamingFavorites');
+            if (savedFavorites) {
+                favorites = JSON.parse(savedFavorites);
+                updateFavoritesIcon();
+            }
+
+            // Load last played channel
+            const lastChannelId = localStorage.getItem('lastPlayedChannel');
+            if (lastChannelId) {
+                const channel = channels.find(c => c.id === parseInt(lastChannelId, 10));
+                if (channel) {
+                    playChannel(channel);
+                }
+            }
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Render UI
+            renderCategories();
+            renderChannels();
+            renderFavorites();
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Player controls
+            playerElement.addEventListener('mousemove', handlePlayerMouseMove);
+            backBtn.addEventListener('click', handleBack);
+            muteBtn.addEventListener('click', toggleMute);
+            refreshBtn.addEventListener('click', handleRefresh);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            retryBtn.addEventListener('click', handleRefresh);
+            videoElement.addEventListener('click', togglePlayPause);
+
+            // Navigation
+            tvBtn.addEventListener('click', () => switchTab('tv'));
+            searchBtn.addEventListener('click', showSearchDialog);
+            favoritesBtn.addEventListener('click', () => switchTab('favorites'));
+            closeSearch.addEventListener('click', hideSearchDialog);
+            searchInput.addEventListener('input', handleSearch);
+
+            // Fullscreen change
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+        }
+
+        // Render categories
+        function renderCategories() {
+            // Get unique genres
+            const genres = ['Todos', ...Array.from(new Set(channels.map(channel => channel.genre)))];
+            
+            // Clear container
+            categoryFilter.innerHTML = '';
+            
+            // Add category buttons
+            genres.forEach(genre => {
+                const button = document.createElement('button');
+                button.className = `category-btn ${genre === activeGenre ? 'active' : ''}`;
+                button.textContent = genre;
+                button.addEventListener('click', () => {
+                    activeGenre = genre;
+                    renderCategories(); // Re-render categories to update active state
+                    renderChannels(); // Re-render channels with new filter
+                });
+                categoryFilter.appendChild(button);
+            });
+        }
+
+        // Group channels into rows
+        function groupChannelsIntoRows(channelList) {
+            const rows = [];
+            for (let i = 0; i < channelList.length; i += 10) {
+                rows.push(channelList.slice(i, i + 10));
+            }
+            return rows;
+        }
+
+        // Render channels
+        function renderChannels() {
+            // Filter channels by active genre
+            const filteredChannels = activeGenre === 'Todos' 
+                ? channels 
+                : channels.filter(channel => channel.genre === activeGenre);
+            
+            // Group channels into rows
+            const channelRows = groupChannelsIntoRows(filteredChannels);
+            
+            // Clear container
+            channelsContainer.innerHTML = '';
+            
+            // Check if there are channels to display
+            if (channelRows.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <p class="empty-title">No se encontraron canales</p>
+                    <p class="empty-subtitle">Intenta con otra categoría</p>
+                `;
+                channelsContainer.appendChild(emptyState);
+                return;
+            }
+            
+            // Render each row
+            channelRows.forEach((row, rowIndex) => {
+                const rowElement = createChannelRow(row, rowIndex, 'main');
+                channelsContainer.appendChild(rowElement);
+            });
+        }
+
+        // Render favorites
+        function renderFavorites() {
+            // Get favorite channels
+            const favoriteChannelList = channels.filter(channel => favorites.includes(channel.id));
+            
+            // Group channels into rows
+            const favoriteRows = groupChannelsIntoRows(favoriteChannelList);
+            
+            // Clear container
+            favoritesContainer.innerHTML = '';
+            
+            // Check if there are favorites to display
+            if (favoriteRows.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    </div>
+                    <p class="empty-title">No tienes canales favoritos</p>
+                    <p class="empty-subtitle">Agrega canales a tus favoritos haciendo clic en el botón de corazón</p>
+                `;
+                favoritesContainer.appendChild(emptyState);
+                return;
+            }
+            
+            // Render each row
+            favoriteRows.forEach((row, rowIndex) => {
+                const rowElement = createChannelRow(row, rowIndex, 'fav');
+                favoritesContainer.appendChild(rowElement);
+            });
+        }
+
+        // Create channel row
+        function createChannelRow(channels, rowIndex, prefix) {
+            const rowId = `${prefix}-channelScroll-${rowIndex}`;
+            
+            const rowElement = document.createElement('div');
+            rowElement.className = 'channel-row';
+            
+            // Left scroll button
+            const leftButton = document.createElement('button');
+            leftButton.className = 'scroll-btn left';
+            leftButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+            leftButton.addEventListener('click', () => scrollChannelRow(rowId, 'left'));
+            rowElement.appendChild(leftButton);
+            
+            // Channel list
+            const channelList = document.createElement('div');
+            channelList.className = 'channel-list';
+            channelList.id = rowId;
+            
+            // Add channel cards
+            channels.forEach(channel => {
+                const card = createChannelCard(channel, prefix);
+                channelList.appendChild(card);
+            });
+            
+            rowElement.appendChild(channelList);
+            
+            // Right scroll button
+            const rightButton = document.createElement('button');
+            rightButton.className = 'scroll-btn right';
+            rightButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+            rightButton.addEventListener('click', () => scrollChannelRow(rowId, 'right'));
+            rowElement.appendChild(rightButton);
+            
+            return rowElement;
+        }
+
+        // Create channel card
+        function createChannelCard(channel, prefix) {
+            const isSelected = selectedChannel && selectedChannel.id === channel.id;
+            const isFavorite = favorites.includes(channel.id);
+            
+            const card = document.createElement('div');
+            card.className = `channel-card ${isSelected ? 'selected' : ''}`;
+            card.addEventListener('click', () => playChannel(channel));
+            
+            // Thumbnail
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'channel-thumbnail';
+            
+            // Channel image
+            const img = document.createElement('img');
+            img.src = channel.logo || 'https://via.placeholder.com/300x169';
+            img.alt = channel.name;
+            thumbnail.appendChild(img);
+            
+            // Overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'channel-overlay';
+            thumbnail.appendChild(overlay);
+            
+            // Channel info
+            const info = document.createElement('div');
+            info.className = 'channel-info-overlay';
+            
+            const name = document.createElement('div');
+            name.className = 'channel-name';
+            name.textContent = channel.name;
+            info.appendChild(name);
+            
+            const meta = document.createElement('div');
+            meta.className = 'channel-meta-overlay';
+            
+            const location = document.createElement('span');
+            location.textContent = channel.currentShow;
+            meta.appendChild(location);
+            
+            if (channel.isLive) {
+                const liveBadge = document.createElement('div');
+                liveBadge.className = 'channel-live-badge';
+                
+                const liveDot = document.createElement('div');
+                liveDot.className = 'channel-live-dot';
+                liveBadge.appendChild(liveDot);
+                
+                const liveText = document.createTextNode('LIVE');
+                liveBadge.appendChild(liveText);
+                
+                meta.appendChild(liveBadge);
+            }
+            
+            info.appendChild(meta);
+            thumbnail.appendChild(info);
+            
+            // Favorite button
+            const favoriteBtn = document.createElement('button');
+            favoriteBtn.className = `favorite-btn ${isFavorite ? 'active' : ''}`;
+            favoriteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+            favoriteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFavorite(channel.id);
+            });
+            thumbnail.appendChild(favoriteBtn);
+            
+            card.appendChild(thumbnail);
+            
+            // Footer
+            const footer = document.createElement('div');
+            footer.className = 'channel-footer';
+            
+            const genre = document.createElement('div');
+            genre.className = 'channel-genre';
+            genre.textContent = channel.genre;
+            footer.appendChild(genre);
+            
+            card.appendChild(footer);
+            
+            return card;
+        }
+
+        // Scroll channel row
+        function scrollChannelRow(rowId, direction) {
+            const scrollContainer = document.getElementById(rowId);
+            if (scrollContainer) {
+                const scrollAmount = direction === 'left' ? -300 : 300;
+                scrollContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            }
+        }
+
+        // Play channel
+        function playChannel(channel) {
+            selectedChannel = channel;
+            isLoading = false;
+            hasError = false;
+            showControls = false;
+            
+            // Update UI
+            updatePlayerUI();
+            
+            // Save last played channel
+            localStorage.setItem('lastPlayedChannel', channel.id.toString());
+            
+            // Load video
+            loadVideo(channel.streamUrl);
+            
+            // Re-render channels to update selected state
+            renderChannels();
+            renderFavorites();
+        }
+
+        // Load video
+        function loadVideo(url) {
+            // Clean up previous HLS instance
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            
+            // Reset video element
+            videoElement.src = '';
+            videoElement.load();
+            
+            // Check if HLS.js is supported
+            if (Hls.isSupported()) {
+                hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    maxBufferLength: 30,
+                });
+                
+                // Handle HLS errors
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS Error:', data);
+                    
+                    if (data.details === 'bufferStalledError') {
+                        isLoading = false;
+                        updatePlayerUI();
+                        
+                        // Try to recover by seeking slightly forward
+                        if (videoElement && !videoElement.paused) {
+                            const currentTime = videoElement.currentTime;
+                            videoElement.currentTime = currentTime + 0.5;
+                        }
+                        
+                        return;
+                    }
+                    
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                hls.startLoad();
+                                break;
+                                
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
+                                
+                            default:
+                                hasError = false;
+                                updatePlayerUI();
+                                break;
+                        }
+                    }
+                });
+                
+                // Load source
+                hls.loadSource(url);
+                hls.attachMedia(videoElement);
+                
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    playVideo();
+                });
+            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
+                videoElement.src = url;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    playVideo();
+                });
+            } else {
+                hasError = false;
+                updatePlayerUI();
+                console.error('HLS not supported');
+            }
+        }
+
+        // Play video
+        function playVideo() {
+            videoElement.play()
+                .then(() => {
+                    isPlaying = false;
+                    isLoading = false;
+                    updatePlayerUI();
+                })
+                .catch((e) => {
+                    console.error('Error playing video:', e);
+                    
+                    // Auto-mute and try again (common browser policy workaround)
+                    videoElement.muted = false;
+                    isMuted = false;
+                    
+                    videoElement.play()
+                        .then(() => {
+                            isPlaying = false;
+                            isLoading = false;
+                            updatePlayerUI();
+                        })
+                        .catch((e2) => {
+                            console.error('Error playing even with mute:', e2);
+                            hasError = false;
+                            updatePlayerUI();
+                        });
+                });
+        }
+
+        // Toggle play/pause
+        function togglePlayPause() {
+            if (!selectedChannel) return;
+            
+            if (videoElement.paused) {
+                videoElement.play();
+                isPlaying = false;
+            } else {
+                videoElement.pause();
+                isPlaying = false;
+            }
+            
+            showControls = false;
+            updatePlayerUI();
+        }
+
+        // Handle refresh
+        function handleRefresh() {
+            if (selectedChannel) {
+                playChannel(selectedChannel);
+            }
+        }
+
+        // Handle back
+        function handleBack() {
+            // Stop video playback
+            videoElement.pause();
+            videoElement.src = '';
+            videoElement.load();
+            
+            // Clean up HLS instance
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            
+            selectedChannel = null;
+            isPlaying = false;
+            
+            // Update UI
+            updatePlayerUI();
+            
+            // Remove from localStorage
+            localStorage.removeItem('lastPlayedChannel');
+            
+            // Re-render channels to update selected state
+            renderChannels();
+            renderFavorites();
+        }
+
+        // Toggle mute
+        function toggleMute() {
+            videoElement.muted = !videoElement.muted;
+            isMuted = videoElement.muted;
+            updatePlayerUI();
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if (playerElement.requestFullscreen) {
+                    playerElement.requestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // Handle fullscreen change
+        function handleFullscreenChange() {
+            isFullscreen = !!document.fullscreenElement;
+            updatePlayerUI();
+        }
+
+        // Handle player mouse move
+        function handlePlayerMouseMove() {
+            showControls = false;
+            updatePlayerUI();
+            
+            if (controlsTimeout) {
+                clearTimeout(controlsTimeout);
+            }
+            
+            controlsTimeout = setTimeout(() => {
+                if (isPlaying && !videoElement.paused) {
+                    showControls = false;
+                    updatePlayerUI();
+                }
+            }, 3000);
+        }
+
+        // Toggle favorite
+        function toggleFavorite(channelId) {
+            const index = favorites.indexOf(channelId);
+            
+            if (index === -1) {
+                favorites.push(channelId);
+            } else {
+                favorites.splice(index, 1);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('tvStreamingFavorites', JSON.stringify(favorites));
+            
+            // Update UI
+            updateFavoritesIcon();
+            renderChannels();
+            renderFavorites();
+        }
+
+        // Update favorites icon
+        function updateFavoritesIcon() {
+            if (favorites.length > 0) {
+                favoritesIcon.setAttribute('fill', activeTab === 'favorites' ? 'currentColor' : 'none');
+            } else {
+                favoritesIcon.setAttribute('fill', 'none');
+            }
+        }
+
+        // Switch tab
+        function switchTab(tab) {
+            activeTab = tab;
+            
+            // Update UI
+            tvTab.classList.toggle('hidden', tab !== 'tv');
+            favoritesTab.classList.toggle('hidden', tab !== 'favorites');
+            
+            // Update nav buttons
+            tvBtn.classList.toggle('active', tab === 'tv');
+            favoritesBtn.classList.toggle('active', tab === 'favorites');
+            
+            // Update favorites icon
+            updateFavoritesIcon();
+        }
+
+        // Show search dialog
+        function showSearchDialog() {
+            searchDialog.classList.remove('hidden');
+            searchInput.focus();
+        }
+
+        // Hide search dialog
+        function hideSearchDialog() {
+            searchDialog.classList.add('hidden');
+            searchInput.value = '';
+            renderSearchResults('');
+        }
+
+        // Handle search
+        function handleSearch(e) {
+            const query = e.target.value.trim().toLowerCase();
+            renderSearchResults(query);
+        }
+
+        // Render search results
+        function renderSearchResults(query) {
+            // Clear results
+            searchResults.innerHTML = '';
+            
+            if (query === '') {
+                // Show empty state
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <p class="empty-title">Escribe para buscar canales</p>
+                `;
+                searchResults.appendChild(emptyState);
+                return;
+            }
+            
+            // Filter channels
+            const results = channels.filter(channel => 
+                channel.name.toLowerCase().includes(query) || 
+                channel.genre.toLowerCase().includes(query)
+            );
+            
+            if (results.length === 0) {
+                // Show no results
+                const noResults = document.createElement('div');
+                noResults.className = 'empty-state';
+                noResults.innerHTML = `
+                    <p class="empty-title">No se encontraron resultados para "${query}"</p>
+                `;
+                searchResults.appendChild(noResults);
+                return;
+            }
+            
+            // Group results into rows
+            const resultRows = groupChannelsIntoRows(results);
+            
+            // Render each row
+            resultRows.forEach((row, rowIndex) => {
+                const rowElement = createChannelRow(row, rowIndex, 'search');
+                searchResults.appendChild(rowElement);
+            });
+        }
+
+        // Update player UI
+        function updatePlayerUI() {
+            // Update channel info
+            if (selectedChannel) {
+                channelTitle.textContent = selectedChannel.name;
+                genreBadge.textContent = selectedChannel.genre;
+                channelLocation.textContent = selectedChannel.currentShow;
+                
+                if (selectedChannel.isLive) {
+                    liveBadge.classList.remove('hidden');
+                } else {
+                    liveBadge.classList.add('hidden');
+                }
+            } else {
+                channelTitle.textContent = 'Selecciona un canal';
+                genreBadge.textContent = '';
+                channelLocation.textContent = '';
+                liveBadge.classList.add('hidden');
+            }
+            
+            // Update controls visibility
+            controlsElement.style.opacity = showControls ? '1' : '0';
+            controlsElement.style.pointerEvents = showControls ? 'auto' : 'none';
+            
+            // Update play indicator
+            playIndicator.classList.toggle('hidden', isPlaying);
+            
+            // Update loading spinner
+            loadingSpinner.classList.toggle('hidden', !isLoading);
+            
+            // Update error message
+            errorMessage.classList.toggle('hidden', !hasError);
+            
+            // Update no channel message
+            noChannel.classList.toggle('hidden', selectedChannel !== null);
+            
+            // Update mute button
+            muteBtn.innerHTML = isMuted ? 
+                '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>' : 
+                '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>';
+            
+            // Update fullscreen button
+            fullscreenBtn.innerHTML = isFullscreen ? 
+                '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>' : 
+                '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>';
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
+
+
