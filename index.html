@@ -1705,6 +1705,13 @@ html >
             
             return card;
         }
+function renderChannels() {
+    const scrollPos = channelsContainer.scrollTop; // 👈 Guarda posición
+
+    // ...tu código que modifica el DOM...
+
+    channelsContainer.scrollTop = scrollPos; // 👈 Restaura scroll después
+}
 
         // Scroll channel row
         function scrollChannelRow(rowId, direction) {
